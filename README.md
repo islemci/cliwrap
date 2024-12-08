@@ -23,6 +23,11 @@ $ brew install cliwrap
 > [!NOTE]
 > As the **CLIwrap** is not currently in the Homebrew main repo, you should not forget to add the tap of this app via `brew tap`.
 
+#### Install from AUR
+Arch Linux users can easily install **CLIwrap** from the [AUR](https://aur.archlinux.org)
+```bash
+$ yay -S cliwrap-git
+```
 
 #### Run from file
 With commands below, download cliwrap to your current directory and mark it as executable.
