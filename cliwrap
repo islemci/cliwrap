@@ -133,10 +133,16 @@ display_table() {
         # Custom messages for specific commands/tools
         if [[ "$top_item" == "git" ]]; then
             echo -e "${YELLOW}Great! You're a git master! Keep version controlling like a pro.${RESET}"
+        elif [[ "$top_item" == "zoom" ]]; then
+            echo -e "${YELLOW}Wow, are you like meetings? Good meetings!${RESET}"
         elif [[ "$top_item" == "ls" ]]; then
             echo -e "${YELLOW}Looks like you're exploring a lot of directories. Neat!${RESET}"
         elif [[ "$top_item" == "cd" ]]; then
             echo -e "${YELLOW}Navigating through the filesystem like a champ!${RESET}"
+        elif [[ "$top_item" == "mv" ]]; then
+            echo -e "${YELLOW}You often move files and folders. Are you tired?${RESET}"
+        elif [[ "$top_item" == "rm" || "$top_item" == "rmdir" ]]; then
+            echo -e "${YELLOW}Don't delete everything! They can be important :)${RESET}"    
         elif [[ "$top_item" == "python" ]]; then
             echo -e "${YELLOW}Python enthusiast detected! Keep coding.${RESET}"
         elif [[ "$top_item" == "vim" || "$top_item" == "nano" ]]; then
@@ -147,6 +153,8 @@ display_table() {
             echo -e "${YELLOW}Your top tool is CLIwrap? Thank you for the interest!${RESET}" 
         elif [[ "$top_item" == "code" ]]; then
             echo -e "${YELLOW}VSCode? Do you really program that much?${RESET}"
+        elif [[ "$top_item" == "neofetch" ]]; then
+            echo -e "${YELLOW}Are you like neofetch? I think, you'll like CLIwrap too!${RESET}"
         else
             echo -e "${YELLOW}Your top tool is '$top_item'. Keep rocking your terminal!${RESET}"
         fi
