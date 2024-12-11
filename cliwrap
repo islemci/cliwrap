@@ -16,90 +16,97 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 RESET='\033[0m'
 
-# Function to detect the history file based on the flag
-detect_history_file() {
-    if [[ "$1" == "-fish" ]]; then
-        if [[ -f "$HOME/.local/share/fish/fish_history" ]]; then
-            echo "$HOME/.local/share/fish/fish_history"
-        else
-            echo -e "${RED}The specified terminal history file was not found! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
-            return 1
-        fi
-    elif [[ "$1" == "-zsh" ]]; then
-        if [[ -f "$HOME/.zsh_history" ]]; then
-            echo "$HOME/.zsh_history"
-        else
-            echo -e "${RED}The specified terminal history file was not found! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
-            return 1
-        fi
-    elif [[ "$1" == "-bash" ]]; then
-        if [[ -f "$HOME/.bash_history" ]]; then
-            echo "$HOME/.bash_history"
-        else
-            echo -e "${RED}The specified terminal history file was not found! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
-            return 1
-        fi
-    elif [[ "$1" == "-csh" ]] || [[ "$1" == "-tcsh" ]]; then
-        if [[ -f "$HOME/.history" ]]; then
-            echo "$HOME/.history"
-        else
-            echo -e "${RED}The specified terminal history file was not found! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
-            return 1
-        fi
+# Function to check if the desired history file exist
+check_and_return_history_file() {
+  history_file=""
+
+  case $1 in
+  "fish")
+    if [[ -f "$HOME/.local/share/fish/fish_history" ]]; then
+      history_file="$HOME/.local/share/fish/fish_history"
     else
-        if ([[ -f "$HOME/.local/share/fish/fish_history" ]]); then
-            echo "$HOME/.local/share/fish/fish_history"
-        elif [[ -f "$HOME/.zsh_history" ]]; then
-            echo "$HOME/.zsh_history"
-        elif [[ -f "$HOME/.bash_history" ]]; then
-            echo "$HOME/.bash_history"
-        elif [[ -f "$HOME/.history" ]]; then
-            echo "$HOME/.history"
-        else
-            echo -e "${RED}We couldn't find a compatible history file! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
-            return 1
-        fi
+      echo -e "${RED}The specified terminal history file was not found! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
+      return 1
     fi
+    ;;
+  "zsh")
+    if [[ -f "$ZDOTDIR/.zsh_history" ]]; then
+      history_file="$ZDOTDIR/.zsh_history"
+    elif [[ -f "$HOME/.zsh_history" ]]; then
+      history_file="$HOME/.zsh_history"
+    else
+      echo -e "${RED}The specified terminal history file was not found! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
+      return 1
+    fi
+    ;;
+  "csh")
+    if [[ -f "$HOME/.history" ]]; then
+      history_file="$HOME/.history"
+    else
+      echo -e "${RED}The specified terminal history file was not found! Why don't you run \`cliwrap -h\` to find a compatible one?${RESET}" >&2
+      return 1
+    fi
+    ;;
+  *)
+    echo -e "${RED}Your shell is not added to the script. Considering creating an issue on the GitHub repository. ${RESET}" >&2
+    return 1
+    ;;
+  esac
+
+  echo $history_file
+}
+
+# Function to detect the history file
+detect_history_file() {
+  if [[ $1 =~ -[a-zA-Z]+ ]]; then
+    input=${1#*-}
+    check_and_return_history_file $input
+  elif [[ $1 == "" ]]; then
+    check_and_return_history_file "$(basename $SHELL)"
+  else
+    echo -e "${RED}Invalid arguments. Run \`cliwrap -h\`.${RESET}" >&2
+    return 1
+  fi
 }
 
 # Function to clean the history file for processing
 preprocess_history() {
-    local file="$1"
-    if [ -f "$file" ]; then
-        if [[ "$file" == *"fish_history" ]]; then
-            awk '/- cmd: /{cmd=substr($0,8); print cmd}' "$file"
-        else
-            cat "$file" | LC_ALL=C tr -cd '\11\12\15\40-\176' # Allow printable ASCII characters only
-        fi
+  local file="$1"
+  if [ -f "$file" ]; then
+    if [[ "$file" == *"fish_history" ]]; then
+      awk '/- cmd: /{cmd=substr($0,8); print cmd}' "$file"
     else
-        echo "Error: No history file found" >&2
-        return 1
+      cat "$file" | LC_ALL=C tr -cd '\11\12\15\40-\176' # Allow printable ASCII characters only
     fi
+  else
+    echo "Error: No history file found" >&2
+    return 1
+  fi
 }
 
 # Parse history and count occurrences
 parse_history() {
-    local history_data="$1"
-    if [[ "$history_file" == *"fish_history" ]]; then
-        echo "$history_data" | awk '{print $1}' | sort | uniq -c | sort -rn | head -10
-    else
-        echo "$history_data" | awk '{print $1}' | grep -v '^$' | sort | uniq -c | sort -rn | head -10
-    fi
+  local history_data="$1"
+  if [[ "$history_file" == *"fish_history" ]]; then
+    echo "$history_data" | awk '{print $1}' | sort | uniq -c | sort -rn | head -10
+  else
+    echo "$history_data" | awk '{print $1}' | grep -v '^$' | sort | uniq -c | sort -rn | head -10
+  fi
 }
 
 parse_full_commands() {
-    local history_data="$1"
-    if [[ "$history_file" == *"fish_history" ]]; then
-        echo "$history_data" | sort | uniq -c | sort -rn | head -10
-    else
-        echo "$history_data" | grep -E '^\s*\S+\s+\S+' | sort | uniq -c | sort -rn | head -10
-    fi
+  local history_data="$1"
+  if [[ "$history_file" == *"fish_history" ]]; then
+    echo "$history_data" | sort | uniq -c | sort -rn | head -10
+  else
+    echo "$history_data" | grep -E '^\s*\S+\s+\S+' | sort | uniq -c | sort -rn | head -10
+  fi
 }
 
 # Display the cool title :P
 display_title() {
-    echo -e "${CYAN}"
-    cat << "EOF"
+  echo -e "${CYAN}"
+  cat <<"EOF"
    _____ _      _____                        
   / ____| |    |_   _|                       
  | |    | |      | |_      ___ __ __ _ _ __  
@@ -114,105 +121,105 @@ EOF
 
 # Display top tools and commands
 display_table() {
-    local title="$1"
-    local data="$2"
-    local suppress_message="$3"
+  local title="$1"
+  local data="$2"
+  local suppress_message="$3"
 
-    echo -e "\n${MAGENTA}${title}${RESET}"
-    echo -e "${YELLOW}---------------------------------${RESET}"
-    echo -e "${CYAN}Usage Count | Command${RESET}"
-    echo -e "${YELLOW}---------------------------------${RESET}"
-    echo -e "$data"
-    echo -e "${YELLOW}---------------------------------${RESET}\n"
+  echo -e "\n${MAGENTA}${title}${RESET}"
+  echo -e "${YELLOW}---------------------------------${RESET}"
+  echo -e "${CYAN}Usage Count | Command${RESET}"
+  echo -e "${YELLOW}---------------------------------${RESET}"
+  echo -e "$data"
+  echo -e "${YELLOW}---------------------------------${RESET}\n"
 
-    if [[ "$suppress_message" != "true" ]]; then
-        # Extract the most used command/tool
-        local top_item
-        top_item=$(echo "$data" | head -n 1 | awk '{print $2}')
+  if [[ "$suppress_message" != "true" ]]; then
+    # Extract the most used command/tool
+    local top_item
+    top_item=$(echo "$data" | head -n 1 | awk '{print $2}')
 
-        # Custom messages for specific commands/tools
-        if [[ "$top_item" == "git" ]]; then
-            echo -e "${YELLOW}Great! You're a git master! Keep version controlling like a pro.${RESET}"
-        elif [[ "$top_item" == "ls" ]]; then
-            echo -e "${YELLOW}Looks like you're exploring a lot of directories. Neat!${RESET}"
-        elif [[ "$top_item" == "cd" ]]; then
-            echo -e "${YELLOW}Navigating through the filesystem like a champ!${RESET}"
-        elif [[ "$top_item" == "python" ]]; then
-            echo -e "${YELLOW}Python enthusiast detected! Keep coding.${RESET}"
-        elif [[ "$top_item" == "vim" || "$top_item" == "nano" ]]; then
-            echo -e "${YELLOW}Spending quality time editing files, I see!${RESET}"
-        elif [[ "$top_item" == "apt" || "$top_item" == "brew" || "$top_item" == "pacman" || "$top_item" == "yay" ]]; then
-            echo -e "${YELLOW}You like download new packages and apps, am I correct?${RESET}"
-        elif [[ "$top_item" == "cliwrap" || "$top_item" == "./cliwrap" ]]; then
-            echo -e "${YELLOW}Your top tool is CLIwrap? Thank you for the interest!${RESET}" 
-        elif [[ "$top_item" == "code" ]]; then
-            echo -e "${YELLOW}VSCode? Do you really program that much?${RESET}"
-        else
-            echo -e "${YELLOW}Your top tool is '$top_item'. Keep rocking your terminal!${RESET}"
-        fi
+    # Custom messages for specific commands/tools
+    if [[ "$top_item" == "git" ]]; then
+      echo -e "${YELLOW}Great! You're a git master! Keep version controlling like a pro.${RESET}"
+    elif [[ "$top_item" == "ls" ]]; then
+      echo -e "${YELLOW}Looks like you're exploring a lot of directories. Neat!${RESET}"
+    elif [[ "$top_item" == "cd" ]]; then
+      echo -e "${YELLOW}Navigating through the filesystem like a champ!${RESET}"
+    elif [[ "$top_item" == "python" ]]; then
+      echo -e "${YELLOW}Python enthusiast detected! Keep coding.${RESET}"
+    elif [[ "$top_item" == "vim" || "$top_item" == "nano" ]]; then
+      echo -e "${YELLOW}Spending quality time editing files, I see!${RESET}"
+    elif [[ "$top_item" == "apt" || "$top_item" == "brew" || "$top_item" == "pacman" || "$top_item" == "yay" ]]; then
+      echo -e "${YELLOW}You like download new packages and apps, am I correct?${RESET}"
+    elif [[ "$top_item" == "cliwrap" || "$top_item" == "./cliwrap" ]]; then
+      echo -e "${YELLOW}Your top tool is CLIwrap? Thank you for the interest!${RESET}"
+    elif [[ "$top_item" == "code" ]]; then
+      echo -e "${YELLOW}VSCode? Do you really program that much?${RESET}"
+    else
+      echo -e "${YELLOW}Your top tool is '$top_item'. Keep rocking your terminal!${RESET}"
     fi
+  fi
 }
 
 # Display help message
 display_help() {
-    echo -e "${CYAN}Usage: cliwrap [options]${RESET}"
-    echo -e "${YELLOW}Options:${RESET}"
-    echo -e "${GREEN}  -zsh${RESET}    Force Zsh history file"
-    echo -e "${GREEN}  -bash${RESET}   Force Bash history file"
-    echo -e "${GREEN}  -csh${RESET}    Force Csh history file"
-    echo -e "${GREEN}  -tcsh${RESET}   Force Tcsh history file"
-    echo -e "${GREEN}  -fish${RESET}   Force Fish shell history file"
-    echo -e "${GREEN}  -h${RESET}      Display this help message"
-    echo -e "${YELLOW}Description:${RESET}"
-    echo -e "Use your terminal's history file to make Spotify Wrapped-like statistics on your terminal usage."
-    echo -e "${YELLOW}Source Code:${RESET}"
-    echo -e "https://github.com/islemci/cliwrap"
+  echo -e "${CYAN}Usage: cliwrap [options]${RESET}"
+  echo -e "${YELLOW}Options:${RESET}"
+  echo -e "${GREEN}  -zsh${RESET}    Force Zsh history file"
+  echo -e "${GREEN}  -bash${RESET}   Force Bash history file"
+  echo -e "${GREEN}  -csh${RESET}    Force Csh history file"
+  echo -e "${GREEN}  -tcsh${RESET}   Force Tcsh history file"
+  echo -e "${GREEN}  -fish${RESET}   Force Fish shell history file"
+  echo -e "${GREEN}  -h${RESET}      Display this help message"
+  echo -e "${YELLOW}Description:${RESET}"
+  echo -e "Use your terminal's history file to make Spotify Wrapped-like statistics on your terminal usage."
+  echo -e "${YELLOW}Source Code:${RESET}"
+  echo -e "https://github.com/islemci/cliwrap"
 }
 
 # Main logic
 main() {
-    if [[ "$1" == "-h" ]]; then
-        display_help
-        exit 0
-    fi
+  if [[ "$1" == "-h" ]]; then
+    display_help
+    exit 0
+  fi
 
-    local history_file
-    history_file=$(detect_history_file "$1")
-    if [[ $? -ne 0 ]]; then
-        exit 1
-    fi
+  local history_file
+  history_file=$(detect_history_file "$1")
+  if [[ $? -ne 0 ]]; then
+    exit 1
+  fi
 
-    display_title
+  display_title
 
-    echo -e "${GREEN}Parsing history file: $history_file${RESET}\n"
+  echo -e "${GREEN}Parsing history file: $history_file${RESET}\n"
 
-    # Preprocess history file to remove problematic characters
-    local history_data
-    history_data=$(preprocess_history "$history_file")
-    if [[ $? -ne 0 ]]; then
-        exit 1
-    fi
+  # Preprocess history file to remove problematic characters
+  local history_data
+  history_data=$(preprocess_history "$history_file")
+  if [[ $? -ne 0 ]]; then
+    exit 1
+  fi
 
-    # Top tools
-    local top_tools
-    top_tools=$(parse_history "$history_data")
-    display_table "Top Tools" "$top_tools" "true"
+  # Top tools
+  local top_tools
+  top_tools=$(parse_history "$history_data")
+  display_table "Top Tools" "$top_tools" "true"
 
-    # Top full commands
-    local top_commands
-    top_commands=$(parse_full_commands "$history_data")
-    display_table "Top Full Commands" "$top_commands" "false"
+  # Top full commands
+  local top_commands
+  top_commands=$(parse_full_commands "$history_data")
+  display_table "Top Full Commands" "$top_commands" "false"
 
-    # Total commands
-    if [[ "$history_file" == *"fish_history" ]]; then
-        local total_commands
-        total_commands=$(grep -c '^- cmd: ' "$history_file")
-        echo -e "${GREEN}Total Commands Executed: ${total_commands}${RESET}"
-    else
-        local total_commands
-        total_commands=$(echo "$history_data" | wc -l)
-        echo -e "${GREEN}Total Commands Executed: ${total_commands}${RESET}"
-    fi
+  # Total commands
+  if [[ "$history_file" == *"fish_history" ]]; then
+    local total_commands
+    total_commands=$(grep -c '^- cmd: ' "$history_file")
+    echo -e "${GREEN}Total Commands Executed: ${total_commands}${RESET}"
+  else
+    local total_commands
+    total_commands=$(echo "$history_data" | wc -l)
+    echo -e "${GREEN}Total Commands Executed: ${total_commands}${RESET}"
+  fi
 }
 
 main "$@"
